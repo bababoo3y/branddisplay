@@ -15,6 +15,7 @@ const schema = defineEntSchema(
       .edges("messages", { ref: true })
       .edges("members", { ref: true })
       .edges("invites", { ref: true })
+      .edges("templates", { ref: true })
       .deletion("scheduled", { delayMs: TEAM_DELETION_DELAY_MS }),
 
     users: defineEnt({
@@ -66,6 +67,14 @@ const schema = defineEntSchema(
     })
       .edge("team")
       .edge("member"),
+
+    templates: defineEnt({
+      name: v.string(),
+    })
+      .field("thumbnailStorageId", v.id("_storage"))
+      .field("pdfStorageId", v.optional(v.id("_storage")))
+      .field("pngStorageId", v.optional(v.id("_storage")))
+      .edge("team"),
     as: defineEnt({ ["b"]: v.any() }).index("b", ["b"]),
   },
   { schemaValidation: false },
