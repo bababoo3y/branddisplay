@@ -12,7 +12,10 @@ export function SettingsMenu() {
     <div className="flex flex-col gap-2 items-stretch">
       <NavLink relativeHref="">General</NavLink>
       {team?.isPersonal ? null : (
-        <NavLink relativeHref="/members">Members</NavLink>
+        <>
+          <NavLink relativeHref="/members">Members</NavLink>
+          <NavLink relativeHref="/orders">Orders</NavLink>
+        </>
       )}
     </div>
   );

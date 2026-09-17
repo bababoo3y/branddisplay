@@ -18,6 +18,7 @@ import type * as users_teams from "../users/teams.js";
 import type * as users_teams_members from "../users/teams/members.js";
 import type * as users_teams_members_invites from "../users/teams/members/invites.js";
 import type * as users_teams_messages from "../users/teams/messages.js";
+import type * as users_teams_orders from "../users/teams/orders.js";
 import type * as users_teams_roles from "../users/teams/roles.js";
 import type * as users_teams_templates from "../users/teams/templates.js";
 import type * as utils from "../utils.js";
@@ -39,6 +40,7 @@ declare const fullApi: ApiFromModules<{
   "users/teams/members": typeof users_teams_members;
   "users/teams/members/invites": typeof users_teams_members_invites;
   "users/teams/messages": typeof users_teams_messages;
+  "users/teams/orders": typeof users_teams_orders;
   "users/teams/roles": typeof users_teams_roles;
   "users/teams/templates": typeof users_teams_templates;
   utils: typeof utils;

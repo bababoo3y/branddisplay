@@ -11,13 +11,19 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { toast } from "@/components/ui/use-toast";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
-import { useMutation, useQuery } from "convex/react";
-import { TrashIcon, UploadIcon } from "@radix-ui/react-icons";
+import { useMutation, usePaginatedQuery, useQuery } from "convex/react";
+import { PersonIcon, TrashIcon, UploadIcon } from "@radix-ui/react-icons";
 import { useRef, useState } from "react";
 
 export function TemplateLibrary() {
@@ -71,7 +77,11 @@ export function TemplateLibrary() {
               </div>
             </CardContent>
             {hasManagePermission && (
-              <CardFooter className="p-4 pt-0">
+              <CardFooter className="p-4 pt-0 flex gap-2">
+                <ManageAccessPopover
+                  teamId={team._id}
+                  templateId={template._id}
+                />
                 <DeleteTemplateButton templateId={template._id} />
               </CardFooter>
             )}
@@ -218,6 +228,67 @@ function UploadTemplateForm({
         </form>
       </CardContent>
     </Card>
+  );
+}
+
+function ManageAccessPopover({
+  teamId,
+  templateId,
+}: {
+  teamId: Id<"teams">;
+  templateId: Id<"templates">;
+}) {
+  const { results: members } = usePaginatedQuery(
+    api.users.teams.members.list,
+    { teamId, search: "" },
+    { initialNumItems: 40 }
+  );
+  const access = useQuery(api.users.teams.templates.accessForTemplate, {
+    templateId,
+  });
+  const setAccess = useMutation(api.users.teams.templates.setAccess);
+  const accessSet = new Set(access ?? []);
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button variant="outline" size="sm">
+          <PersonIcon className="mr-2 h-4 w-4" /> Who can order
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-72">
+        <div className="text-sm font-medium mb-2">
+          Members who can order this template
+        </div>
+        <div className="flex flex-col gap-2 max-h-64 overflow-auto">
+          {members.map((member) => (
+            <label
+              key={member._id}
+              className="flex items-center gap-2 text-sm"
+            >
+              <Checkbox
+                checked={accessSet.has(member._id)}
+                onCheckedChange={(checked) =>
+                  handleFailure(async () => {
+                    await setAccess({
+                      templateId,
+                      memberId: member._id,
+                      hasAccess: checked === true,
+                    });
+                  })()
+                }
+              />
+              {member.fullName}
+            </label>
+          ))}
+          {members.length === 0 && (
+            <div className="text-muted-foreground text-sm">
+              No members yet.
+            </div>
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }
 
