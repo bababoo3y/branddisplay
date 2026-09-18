@@ -77,6 +77,10 @@ const schema = defineEntSchema(
       .field("thumbnailStorageId", v.id("_storage"))
       .field("pdfStorageId", v.optional(v.id("_storage")))
       .field("pngStorageId", v.optional(v.id("_storage")))
+      .field("shopifyVariantId", v.optional(v.string()))
+      .field("shopifyProductTitle", v.optional(v.string()))
+      .field("shopifyVariantTitle", v.optional(v.string()))
+      .field("shopifyPrice", v.optional(v.string()))
       .edge("team")
       .edges("members")
       .edges("orders", { ref: true }),
@@ -84,7 +88,11 @@ const schema = defineEntSchema(
     orders: defineEnt({
       quantity: v.number(),
       note: v.optional(v.string()),
+      contactPhone: v.string(),
     })
+      .field("shopifyDraftOrderId", v.optional(v.string()))
+      .field("shopifyDraftOrderUrl", v.optional(v.string()))
+      .field("shopifyError", v.optional(v.string()))
       .edge("team")
       .edge("member")
       .edge("template"),

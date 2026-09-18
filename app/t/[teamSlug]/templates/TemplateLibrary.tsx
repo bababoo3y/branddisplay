@@ -19,12 +19,29 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "@/components/ui/use-toast";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
-import { useMutation, usePaginatedQuery, useQuery } from "convex/react";
-import { PersonIcon, TrashIcon, UploadIcon } from "@radix-ui/react-icons";
-import { useRef, useState } from "react";
+import {
+  useAction,
+  useMutation,
+  usePaginatedQuery,
+  useQuery,
+} from "convex/react";
+import {
+  Link1Icon,
+  PersonIcon,
+  TrashIcon,
+  UploadIcon,
+} from "@radix-ui/react-icons";
+import { useEffect, useRef, useState } from "react";
 
 export function TemplateLibrary() {
   const team = useCurrentTeam();
@@ -53,6 +70,21 @@ export function TemplateLibrary() {
                 className="w-full aspect-square object-cover rounded-md border mb-3"
               />
               <div className="font-medium truncate">{template.name}</div>
+              {template.shopifyProductTitle ? (
+                <div className="text-sm text-muted-foreground">
+                  <div className="truncate">
+                    {template.shopifyProductTitle} —{" "}
+                    {template.shopifyVariantTitle}
+                  </div>
+                  <div className="font-semibold text-foreground">
+                    ${template.shopifyPrice}
+                  </div>
+                </div>
+              ) : (
+                <div className="text-sm text-amber-600">
+                  Not linked to a Shopify product yet
+                </div>
+              )}
               <div className="flex gap-2 mt-1 text-xs text-muted-foreground">
                 {template.pdfUrl && (
                   <a
@@ -77,11 +109,12 @@ export function TemplateLibrary() {
               </div>
             </CardContent>
             {hasManagePermission && (
-              <CardFooter className="p-4 pt-0 flex gap-2">
+              <CardFooter className="p-4 pt-0 flex flex-wrap gap-2">
                 <ManageAccessPopover
                   teamId={team._id}
                   templateId={template._id}
                 />
+                <LinkShopifyProductPopover templateId={template._id} />
                 <DeleteTemplateButton templateId={template._id} />
               </CardFooter>
             )}
@@ -287,6 +320,122 @@ function ManageAccessPopover({
             </div>
           )}
         </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+type ShopifyProduct = {
+  id: string;
+  title: string;
+  variants: { nodes: { id: string; title: string; price: string }[] };
+};
+
+function LinkShopifyProductPopover({
+  templateId,
+}: {
+  templateId: Id<"templates">;
+}) {
+  const [open, setOpen] = useState(false);
+  const listProducts = useAction(api.shopify.listProducts);
+  const setShopifyVariant = useMutation(
+    api.users.teams.templates.setShopifyVariant
+  );
+  const [products, setProducts] = useState<ShopifyProduct[] | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [productId, setProductId] = useState<string>("");
+  const [variantId, setVariantId] = useState<string>("");
+
+  useEffect(() => {
+    if (!open || products !== null) {
+      return;
+    }
+    setLoading(true);
+    listProducts({})
+      .then((result) => setProducts(result as ShopifyProduct[]))
+      .catch(() =>
+        toast({
+          title: "Could not load Shopify products",
+          variant: "destructive",
+        })
+      )
+      .finally(() => setLoading(false));
+  }, [open, products, listProducts]);
+
+  const selectedProduct = products?.find((product) => product.id === productId);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button variant="outline" size="sm">
+          <Link1Icon className="mr-2 h-4 w-4" /> Link product
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-80">
+        <div className="text-sm font-medium mb-2">Link a Shopify product</div>
+        {loading && (
+          <div className="text-muted-foreground text-sm">
+            Loading products from Shopify...
+          </div>
+        )}
+        {products && (
+          <div className="flex flex-col gap-3">
+            <Select
+              value={productId}
+              onValueChange={(value) => {
+                setProductId(value);
+                setVariantId("");
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Choose a product" />
+              </SelectTrigger>
+              <SelectContent>
+                {products.map((product) => (
+                  <SelectItem key={product.id} value={product.id}>
+                    {product.title}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {selectedProduct && (
+              <Select value={variantId} onValueChange={setVariantId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose a variant" />
+                </SelectTrigger>
+                <SelectContent>
+                  {selectedProduct.variants.nodes.map((variant) => (
+                    <SelectItem key={variant.id} value={variant.id}>
+                      {variant.title} — ${variant.price}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            <Button
+              disabled={!selectedProduct || variantId === ""}
+              onClick={handleFailure(async () => {
+                const variant = selectedProduct?.variants.nodes.find(
+                  (v) => v.id === variantId
+                );
+                if (!selectedProduct || !variant) {
+                  return;
+                }
+                await setShopifyVariant({
+                  templateId,
+                  shopifyVariantId: variant.id,
+                  shopifyProductTitle: selectedProduct.title,
+                  shopifyVariantTitle: variant.title,
+                  shopifyPrice: variant.price,
+                });
+                toast({ title: "Template linked to Shopify product." });
+                setOpen(false);
+              })}
+            >
+              Save link
+            </Button>
+          </div>
+        )}
       </PopoverContent>
     </Popover>
   );

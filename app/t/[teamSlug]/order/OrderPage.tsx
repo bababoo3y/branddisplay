@@ -10,7 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { toast } from "@/components/ui/use-toast";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
-import { useMutation, useQuery } from "convex/react";
+import { useAction, useQuery } from "convex/react";
 import { useState } from "react";
 
 export function OrderPage() {
@@ -63,9 +63,31 @@ export function OrderPage() {
                 {order.note && (
                   <div className="text-muted-foreground">{order.note}</div>
                 )}
+                {order.shopifyDraftOrderUrl && (
+                  <a
+                    href={order.shopifyDraftOrderUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="underline text-xs"
+                  >
+                    View Shopify draft order
+                  </a>
+                )}
+                {order.shopifyError && (
+                  <div className="text-destructive text-xs">
+                    Not yet synced to Shopify: {order.shopifyError}
+                  </div>
+                )}
               </div>
-              <div className="text-muted-foreground">
-                Qty {order.quantity}
+              <div className="text-right">
+                <div className="text-muted-foreground">
+                  Qty {order.quantity}
+                </div>
+                <div className="font-semibold">
+                  {order.totalPrice === null
+                    ? "Price pending"
+                    : `$${order.totalPrice.toFixed(2)}`}
+                </div>
               </div>
             </div>
           ))}
@@ -91,9 +113,10 @@ function OrderTemplateCard({
   name: string;
   thumbnailUrl: string | null;
 }) {
-  const createOrder = useMutation(api.users.teams.orders.create);
+  const submitOrder = useAction(api.users.teams.orders.submit);
   const [quantity, setQuantity] = useState("1");
   const [note, setNote] = useState("");
+  const [contactPhone, setContactPhone] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   return (
@@ -117,6 +140,15 @@ function OrderTemplateCard({
           />
         </div>
         <div className="flex flex-col gap-1.5 mt-2">
+          <Label htmlFor={`phone-${templateId}`}>Contact phone</Label>
+          <Input
+            id={`phone-${templateId}`}
+            value={contactPhone}
+            onChange={(event) => setContactPhone(event.target.value)}
+            placeholder="e.g. 021 234 5678"
+          />
+        </div>
+        <div className="flex flex-col gap-1.5 mt-2">
           <Label htmlFor={`note-${templateId}`}>Note (optional)</Label>
           <Input
             id={`note-${templateId}`}
@@ -129,15 +161,16 @@ function OrderTemplateCard({
       <CardFooter className="p-4 pt-0">
         <Button
           className="w-full"
-          disabled={submitting || Number(quantity) < 1}
+          disabled={submitting || Number(quantity) < 1 || contactPhone.trim() === ""}
           onClick={handleFailure(async () => {
             setSubmitting(true);
             try {
-              await createOrder({
+              await submitOrder({
                 teamId,
                 templateId,
                 quantity: Number(quantity),
                 note: note.trim() === "" ? undefined : note.trim(),
+                contactPhone: contactPhone.trim(),
               });
               setQuantity("1");
               setNote("");

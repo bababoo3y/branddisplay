@@ -12,6 +12,7 @@ import type * as functions from "../functions.js";
 import type * as init from "../init.js";
 import type * as invites from "../invites.js";
 import type * as permissions from "../permissions.js";
+import type * as shopify from "../shopify.js";
 import type * as types from "../types.js";
 import type * as users from "../users.js";
 import type * as users_teams from "../users/teams.js";
@@ -34,6 +35,7 @@ declare const fullApi: ApiFromModules<{
   init: typeof init;
   invites: typeof invites;
   permissions: typeof permissions;
+  shopify: typeof shopify;
   types: typeof types;
   users: typeof users;
   "users/teams": typeof users_teams;

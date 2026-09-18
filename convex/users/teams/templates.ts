@@ -41,6 +41,9 @@ export const list = query({
             template.pngStorageId === undefined
               ? null
               : await ctx.storage.getUrl(template.pngStorageId),
+          shopifyProductTitle: template.shopifyProductTitle ?? null,
+          shopifyVariantTitle: template.shopifyVariantTitle ?? null,
+          shopifyPrice: template.shopifyPrice ?? null,
         }))
     );
   },
@@ -115,6 +118,35 @@ export const setAccess = mutation({
   },
 });
 
+export const setShopifyVariant = mutation({
+  args: {
+    templateId: v.id("templates"),
+    shopifyVariantId: v.string(),
+    shopifyProductTitle: v.string(),
+    shopifyVariantTitle: v.string(),
+    shopifyPrice: v.string(),
+  },
+  handler: async (
+    ctx,
+    {
+      templateId,
+      shopifyVariantId,
+      shopifyProductTitle,
+      shopifyVariantTitle,
+      shopifyPrice,
+    }
+  ) => {
+    const template = await ctx.table("templates").getX(templateId);
+    await viewerWithPermissionX(ctx, template.teamId, "Manage Team");
+    await template.patch({
+      shopifyVariantId,
+      shopifyProductTitle,
+      shopifyVariantTitle,
+      shopifyPrice,
+    });
+  },
+});
+
 export const myTemplates = query({
   args: {
     teamId: v.id("teams"),
@@ -137,6 +169,8 @@ export const myTemplates = query({
         _id: template._id,
         name: template.name,
         thumbnailUrl: await ctx.storage.getUrl(template.thumbnailStorageId),
+        shopifyVariantId: template.shopifyVariantId ?? null,
+        shopifyPrice: template.shopifyPrice ?? null,
       }))
     );
   },

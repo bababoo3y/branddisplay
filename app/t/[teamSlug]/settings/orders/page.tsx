@@ -34,9 +34,33 @@ export default function OrdersSettingsPage() {
                     {order.note}
                   </div>
                 )}
+                {order.shopifyDraftOrderUrl ? (
+                  <a
+                    href={order.shopifyDraftOrderUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="underline text-xs"
+                  >
+                    View Shopify draft order
+                  </a>
+                ) : order.shopifyError ? (
+                  <div className="text-destructive text-xs">
+                    Not synced: {order.shopifyError}
+                  </div>
+                ) : null}
               </TableCell>
-              <TableCell>{order.memberName}</TableCell>
+              <TableCell>
+                <div>{order.memberName}</div>
+                <div className="text-muted-foreground text-sm">
+                  {order.contactPhone}
+                </div>
+              </TableCell>
               <TableCell>Qty {order.quantity}</TableCell>
+              <TableCell>
+                {order.totalPrice === null
+                  ? "Price pending"
+                  : `$${order.totalPrice.toFixed(2)}`}
+              </TableCell>
               <TableCell>
                 {new Date(order._creationTime).toLocaleString()}
               </TableCell>
