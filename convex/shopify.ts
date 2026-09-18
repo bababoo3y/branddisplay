@@ -128,16 +128,33 @@ export async function findOrCreateCustomer({
   return existing.customers.nodes[0].id;
 }
 
+export type MailingAddress = {
+  firstName: string;
+  lastName: string;
+  company?: string;
+  address1: string;
+  address2?: string;
+  city: string;
+  province?: string;
+  zip: string;
+  country: string;
+  phone?: string;
+};
+
 export async function createDraftOrder({
   variantId,
   quantity,
   note,
   customerId,
+  billingAddress,
+  shippingAddress,
 }: {
   variantId: string;
   quantity: number;
   note: string;
   customerId: string;
+  billingAddress?: MailingAddress;
+  shippingAddress?: MailingAddress;
 }): Promise<{ id: string; invoiceUrl: string }> {
   const data = await shopifyGraphQL<{
     draftOrderCreate: {
@@ -162,6 +179,9 @@ export async function createDraftOrder({
         lineItems: [{ variantId, quantity }],
         note,
         customerId,
+        tags: ["BD App Order"],
+        billingAddress,
+        shippingAddress,
       },
     }
   );

@@ -37,13 +37,9 @@ export const list = query({
             template.pdfStorageId === undefined
               ? null
               : await ctx.storage.getUrl(template.pdfStorageId),
-          pngUrl:
-            template.pngStorageId === undefined
-              ? null
-              : await ctx.storage.getUrl(template.pngStorageId),
-          shopifyProductTitle: template.shopifyProductTitle ?? null,
-          shopifyVariantTitle: template.shopifyVariantTitle ?? null,
-          shopifyPrice: template.shopifyPrice ?? null,
+          shopifyProductTitle: template.shopifyProductTitle,
+          shopifyVariantTitle: template.shopifyVariantTitle,
+          shopifyPrice: template.shopifyPrice,
         }))
     );
   },
@@ -55,11 +51,23 @@ export const create = mutation({
     name: v.string(),
     thumbnailStorageId: v.id("_storage"),
     pdfStorageId: v.optional(v.id("_storage")),
-    pngStorageId: v.optional(v.id("_storage")),
+    shopifyVariantId: v.string(),
+    shopifyProductTitle: v.string(),
+    shopifyVariantTitle: v.string(),
+    shopifyPrice: v.string(),
   },
   handler: async (
     ctx,
-    { teamId, name, thumbnailStorageId, pdfStorageId, pngStorageId }
+    {
+      teamId,
+      name,
+      thumbnailStorageId,
+      pdfStorageId,
+      shopifyVariantId,
+      shopifyProductTitle,
+      shopifyVariantTitle,
+      shopifyPrice,
+    }
   ) => {
     await viewerWithPermissionX(ctx, teamId, "Manage Team");
     if (name.trim().length === 0) {
@@ -70,7 +78,10 @@ export const create = mutation({
       name,
       thumbnailStorageId,
       pdfStorageId,
-      pngStorageId,
+      shopifyVariantId,
+      shopifyProductTitle,
+      shopifyVariantTitle,
+      shopifyPrice,
     });
   },
 });
@@ -169,8 +180,8 @@ export const myTemplates = query({
         _id: template._id,
         name: template.name,
         thumbnailUrl: await ctx.storage.getUrl(template.thumbnailStorageId),
-        shopifyVariantId: template.shopifyVariantId ?? null,
-        shopifyPrice: template.shopifyPrice ?? null,
+        shopifyVariantId: template.shopifyVariantId,
+        shopifyPrice: template.shopifyPrice,
       }))
     );
   },

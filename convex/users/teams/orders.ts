@@ -1,5 +1,9 @@
 import { v } from "convex/values";
-import { createDraftOrder, findOrCreateCustomer } from "../../shopify";
+import {
+  createDraftOrder,
+  findOrCreateCustomer,
+  MailingAddress,
+} from "../../shopify";
 import { action } from "../../_generated/server";
 import { internal } from "../../_generated/api";
 import { internalMutation, query } from "../../functions";
@@ -12,8 +16,12 @@ export const submit = action({
     quantity: v.number(),
     note: v.optional(v.string()),
     contactPhone: v.string(),
+    costCentreId: v.optional(v.id("costCentres")),
   },
-  handler: async (ctx, { teamId, templateId, quantity, note, contactPhone }) => {
+  handler: async (
+    ctx,
+    { teamId, templateId, quantity, note, contactPhone, costCentreId }
+  ) => {
     const {
       orderId,
       teamName,
@@ -23,12 +31,15 @@ export const submit = action({
       email,
       firstName,
       lastName,
+      billing,
+      shipping,
     } = await ctx.runMutation(internal.users.teams.orders.insert, {
       teamId,
       templateId,
       quantity,
       note,
       contactPhone,
+      costCentreId,
     });
 
     if (shopifyVariantId === null) {
@@ -38,6 +49,37 @@ export const submit = action({
       });
       return;
     }
+
+    const billingAddress: MailingAddress | undefined =
+      billing === null
+        ? undefined
+        : {
+            firstName,
+            lastName,
+            company: billing.company,
+            address1: billing.address1,
+            address2: billing.address2,
+            city: billing.city,
+            province: billing.region,
+            zip: billing.zip,
+            country: billing.country,
+            phone: billing.phone ?? contactPhone,
+          };
+    const shippingAddress: MailingAddress | undefined =
+      shipping === null
+        ? billingAddress
+        : {
+            firstName,
+            lastName,
+            company: teamName,
+            address1: shipping.address1,
+            address2: shipping.address2,
+            city: shipping.city,
+            province: shipping.region,
+            zip: shipping.zip,
+            country: shipping.country,
+            phone: shipping.phone ?? contactPhone,
+          };
 
     try {
       const customerId = await findOrCreateCustomer({
@@ -49,6 +91,8 @@ export const submit = action({
         variantId: shopifyVariantId,
         quantity,
         customerId,
+        billingAddress,
+        shippingAddress,
         note: `Order for ${teamName} from ${memberName} (${templateName})${
           note ? ` — ${note}` : ""
         }. Contact phone: ${contactPhone}`,
@@ -75,8 +119,12 @@ export const insert = internalMutation({
     quantity: v.number(),
     note: v.optional(v.string()),
     contactPhone: v.string(),
+    costCentreId: v.optional(v.id("costCentres")),
   },
-  handler: async (ctx, { teamId, templateId, quantity, note, contactPhone }) => {
+  handler: async (
+    ctx,
+    { teamId, templateId, quantity, note, contactPhone, costCentreId }
+  ) => {
     const member = await viewerWithPermissionX(ctx, teamId, "Contribute");
     if (!Number.isInteger(quantity) || quantity < 1) {
       throw new Error("Quantity must be a whole number of at least 1");
@@ -84,6 +132,12 @@ export const insert = internalMutation({
     const hasAccess = await member.edge("templates").has(templateId);
     if (!hasAccess) {
       throw new Error("You don't have access to order this template");
+    }
+    if (costCentreId !== undefined) {
+      const costCentre = await ctx.table("costCentres").getX(costCentreId);
+      if (costCentre.teamId !== teamId) {
+        throw new Error("Cost centre does not belong to this team");
+      }
     }
     const template = await ctx.table("templates").getX(templateId);
     const team = await ctx.table("teams").getX(teamId);
@@ -94,8 +148,37 @@ export const insert = internalMutation({
       quantity,
       note,
       contactPhone,
+      costCentreId,
     });
     const user = await member.edge("user");
+    const billing =
+      team.billingAddress1 === undefined
+        ? null
+        : {
+            company: team.billingCompany,
+            address1: team.billingAddress1,
+            address2: team.billingAddress2,
+            city: team.billingCity ?? "",
+            region: team.billingRegion,
+            zip: team.billingZip ?? "",
+            country: team.billingCountry ?? "",
+            phone: team.billingPhone,
+          };
+    const shipping =
+      costCentreId === undefined
+        ? null
+        : await (async () => {
+            const costCentre = await ctx.table("costCentres").getX(costCentreId);
+            return {
+              address1: costCentre.address1,
+              address2: costCentre.address2,
+              city: costCentre.city,
+              region: costCentre.region,
+              zip: costCentre.zip,
+              country: costCentre.country,
+              phone: costCentre.phone,
+            };
+          })();
     return {
       orderId,
       teamName: team.name,
@@ -105,6 +188,8 @@ export const insert = internalMutation({
       email: user.email,
       firstName: user.firstName ?? user.fullName,
       lastName: user.lastName ?? "",
+      billing,
+      shipping,
     };
   },
 });

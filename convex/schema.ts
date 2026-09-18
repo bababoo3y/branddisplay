@@ -12,11 +12,20 @@ const schema = defineEntSchema(
       isPersonal: v.boolean(),
     })
       .field("slug", v.string(), { unique: true })
+      .field("billingCompany", v.optional(v.string()))
+      .field("billingAddress1", v.optional(v.string()))
+      .field("billingAddress2", v.optional(v.string()))
+      .field("billingCity", v.optional(v.string()))
+      .field("billingRegion", v.optional(v.string()))
+      .field("billingZip", v.optional(v.string()))
+      .field("billingCountry", v.optional(v.string()))
+      .field("billingPhone", v.optional(v.string()))
       .edges("messages", { ref: true })
       .edges("members", { ref: true })
       .edges("invites", { ref: true })
       .edges("templates", { ref: true })
       .edges("orders", { ref: true })
+      .edges("costCentres", { ref: true })
       .deletion("scheduled", { delayMs: TEAM_DELETION_DELAY_MS }),
 
     users: defineEnt({
@@ -76,11 +85,10 @@ const schema = defineEntSchema(
     })
       .field("thumbnailStorageId", v.id("_storage"))
       .field("pdfStorageId", v.optional(v.id("_storage")))
-      .field("pngStorageId", v.optional(v.id("_storage")))
-      .field("shopifyVariantId", v.optional(v.string()))
-      .field("shopifyProductTitle", v.optional(v.string()))
-      .field("shopifyVariantTitle", v.optional(v.string()))
-      .field("shopifyPrice", v.optional(v.string()))
+      .field("shopifyVariantId", v.string())
+      .field("shopifyProductTitle", v.string())
+      .field("shopifyVariantTitle", v.string())
+      .field("shopifyPrice", v.string())
       .edge("team")
       .edges("members")
       .edges("orders", { ref: true }),
@@ -95,7 +103,21 @@ const schema = defineEntSchema(
       .field("shopifyError", v.optional(v.string()))
       .edge("team")
       .edge("member")
-      .edge("template"),
+      .edge("template")
+      .edge("costCentre", { field: "costCentreId", optional: true }),
+
+    costCentres: defineEnt({
+      name: v.string(),
+      address1: v.string(),
+      address2: v.optional(v.string()),
+      city: v.string(),
+      region: v.optional(v.string()),
+      zip: v.string(),
+      country: v.string(),
+      phone: v.optional(v.string()),
+    })
+      .edge("team")
+      .edges("orders", { ref: true }),
 
     as: defineEnt({ ["b"]: v.any() }).index("b", ["b"]),
   },

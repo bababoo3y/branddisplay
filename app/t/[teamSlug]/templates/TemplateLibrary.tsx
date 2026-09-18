@@ -12,6 +12,14 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -36,6 +44,8 @@ import {
   useQuery,
 } from "convex/react";
 import {
+  CaretSortIcon,
+  CheckIcon,
   Link1Icon,
   PersonIcon,
   TrashIcon,
@@ -70,43 +80,25 @@ export function TemplateLibrary() {
                 className="w-full aspect-square object-cover rounded-md border mb-3"
               />
               <div className="font-medium truncate">{template.name}</div>
-              {template.shopifyProductTitle ? (
-                <div className="text-sm text-muted-foreground">
-                  <div className="truncate">
-                    {template.shopifyProductTitle} —{" "}
-                    {template.shopifyVariantTitle}
-                  </div>
-                  <div className="font-semibold text-foreground">
-                    ${template.shopifyPrice}
-                  </div>
+              <div className="text-sm text-muted-foreground">
+                <div className="truncate">
+                  {template.shopifyProductTitle} —{" "}
+                  {template.shopifyVariantTitle}
                 </div>
-              ) : (
-                <div className="text-sm text-amber-600">
-                  Not linked to a Shopify product yet
+                <div className="font-semibold text-foreground">
+                  ${template.shopifyPrice}
                 </div>
-              )}
-              <div className="flex gap-2 mt-1 text-xs text-muted-foreground">
-                {template.pdfUrl && (
-                  <a
-                    href={template.pdfUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="underline"
-                  >
-                    PDF
-                  </a>
-                )}
-                {template.pngUrl && (
-                  <a
-                    href={template.pngUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="underline"
-                  >
-                    PNG
-                  </a>
-                )}
               </div>
+              {template.pdfUrl && (
+                <a
+                  href={template.pdfUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="underline text-xs text-muted-foreground"
+                >
+                  PDF
+                </a>
+              )}
             </CardContent>
             {hasManagePermission && (
               <CardFooter className="p-4 pt-0 flex flex-wrap gap-2">
@@ -130,6 +122,161 @@ export function TemplateLibrary() {
   );
 }
 
+type ShopifyProduct = {
+  id: string;
+  title: string;
+  variants: { nodes: { id: string; title: string; price: string }[] };
+};
+
+type ShopifyVariantSelection = {
+  variantId: string;
+  productTitle: string;
+  variantTitle: string;
+  price: string;
+};
+
+function ProductVariantPicker({
+  disabled,
+  onChange,
+}: {
+  disabled?: boolean;
+  onChange: (selection: ShopifyVariantSelection | null) => void;
+}) {
+  const listProducts = useAction(api.shopify.listProducts);
+  const [products, setProducts] = useState<ShopifyProduct[] | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [productId, setProductId] = useState("");
+  const [variantId, setVariantId] = useState("");
+
+  useEffect(() => {
+    listProducts({})
+      .then((result) => setProducts(result as ShopifyProduct[]))
+      .catch(() =>
+        toast({
+          title: "Could not load Shopify products",
+          variant: "destructive",
+        })
+      )
+      .finally(() => setLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const selectedProduct = products?.find((product) => product.id === productId);
+  const selectedVariant = selectedProduct?.variants.nodes.find(
+    (variant) => variant.id === variantId
+  );
+
+  useEffect(() => {
+    if (selectedProduct && selectedVariant) {
+      onChange({
+        variantId: selectedVariant.id,
+        productTitle: selectedProduct.title,
+        variantTitle: selectedVariant.title,
+        price: selectedVariant.price,
+      });
+    } else {
+      onChange(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [productId, variantId]);
+
+  if (loading) {
+    return (
+      <div className="text-muted-foreground text-sm">
+        Loading products from Shopify...
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <ProductCombobox
+        products={products ?? []}
+        disabled={disabled}
+        value={productId}
+        onChange={(value) => {
+          setProductId(value);
+          setVariantId("");
+        }}
+      />
+      {selectedProduct && (
+        <Select disabled={disabled} value={variantId} onValueChange={setVariantId}>
+          <SelectTrigger>
+            <SelectValue placeholder="Choose a variant" />
+          </SelectTrigger>
+          <SelectContent>
+            {selectedProduct.variants.nodes.map((variant) => (
+              <SelectItem key={variant.id} value={variant.id}>
+                {variant.title} — ${variant.price}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
+    </div>
+  );
+}
+
+function ProductCombobox({
+  products,
+  value,
+  disabled,
+  onChange,
+}: {
+  products: ShopifyProduct[];
+  value: string;
+  disabled?: boolean;
+  onChange: (productId: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const selected = products.find((product) => product.id === value);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          disabled={disabled}
+          className="justify-between font-normal"
+        >
+          <span className="truncate">{selected ? selected.title : "Choose a product"}</span>
+          <CaretSortIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-80 p-0">
+        <Command>
+          <CommandInput placeholder="Search products..." />
+          <CommandList>
+            <CommandEmpty>No product found.</CommandEmpty>
+            <CommandGroup>
+              {products.map((product) => (
+                <CommandItem
+                  key={product.id}
+                  value={product.title}
+                  onSelect={() => {
+                    onChange(product.id);
+                    setOpen(false);
+                  }}
+                >
+                  <CheckIcon
+                    className={
+                      "mr-2 h-4 w-4 " +
+                      (product.id === value ? "opacity-100" : "opacity-0")
+                    }
+                  />
+                  {product.title}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 function UploadTemplateForm({
   teamId,
   disabled,
@@ -142,6 +289,9 @@ function UploadTemplateForm({
   );
   const createTemplate = useMutation(api.users.teams.templates.create);
   const [name, setName] = useState("");
+  const [selection, setSelection] = useState<ShopifyVariantSelection | null>(
+    null
+  );
   const [submitting, setSubmitting] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
 
@@ -177,11 +327,16 @@ function UploadTemplateForm({
             ).files?.[0];
             const pdfFile = (form.elements.namedItem("pdf") as HTMLInputElement)
               .files?.[0];
-            const pngFile = (form.elements.namedItem("png") as HTMLInputElement)
-              .files?.[0];
             if (!thumbnailFile) {
               toast({
                 title: "A thumbnail image is required",
+                variant: "destructive",
+              });
+              return;
+            }
+            if (!selection) {
+              toast({
+                title: "Choose a Shopify product and variant",
                 variant: "destructive",
               });
               return;
@@ -192,17 +347,18 @@ function UploadTemplateForm({
               const pdfStorageId = pdfFile
                 ? await uploadFile(pdfFile)
                 : undefined;
-              const pngStorageId = pngFile
-                ? await uploadFile(pngFile)
-                : undefined;
               await createTemplate({
                 teamId,
                 name,
                 thumbnailStorageId,
                 pdfStorageId,
-                pngStorageId,
+                shopifyVariantId: selection.variantId,
+                shopifyProductTitle: selection.productTitle,
+                shopifyVariantTitle: selection.variantTitle,
+                shopifyPrice: selection.price,
               });
               setName("");
+              setSelection(null);
               formRef.current?.reset();
               toast({ title: "Template uploaded." });
             } finally {
@@ -242,17 +398,11 @@ function UploadTemplateForm({
             />
           </div>
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="png">PNG snippet (optional)</Label>
-            <Input
-              id="png"
-              name="png"
-              type="file"
-              accept="image/png"
-              disabled={disabled}
-            />
+            <Label>Shopify product (required)</Label>
+            <ProductVariantPicker disabled={disabled} onChange={setSelection} />
           </div>
           <Button
-            disabled={disabled || submitting || name.trim() === ""}
+            disabled={disabled || submitting || name.trim() === "" || !selection}
             type="submit"
             className="w-fit"
           >
@@ -325,117 +475,50 @@ function ManageAccessPopover({
   );
 }
 
-type ShopifyProduct = {
-  id: string;
-  title: string;
-  variants: { nodes: { id: string; title: string; price: string }[] };
-};
-
 function LinkShopifyProductPopover({
   templateId,
 }: {
   templateId: Id<"templates">;
 }) {
   const [open, setOpen] = useState(false);
-  const listProducts = useAction(api.shopify.listProducts);
   const setShopifyVariant = useMutation(
     api.users.teams.templates.setShopifyVariant
   );
-  const [products, setProducts] = useState<ShopifyProduct[] | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [productId, setProductId] = useState<string>("");
-  const [variantId, setVariantId] = useState<string>("");
-
-  useEffect(() => {
-    if (!open || products !== null) {
-      return;
-    }
-    setLoading(true);
-    listProducts({})
-      .then((result) => setProducts(result as ShopifyProduct[]))
-      .catch(() =>
-        toast({
-          title: "Could not load Shopify products",
-          variant: "destructive",
-        })
-      )
-      .finally(() => setLoading(false));
-  }, [open, products, listProducts]);
-
-  const selectedProduct = products?.find((product) => product.id === productId);
+  const [selection, setSelection] = useState<ShopifyVariantSelection | null>(
+    null
+  );
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button variant="outline" size="sm">
-          <Link1Icon className="mr-2 h-4 w-4" /> Link product
+          <Link1Icon className="mr-2 h-4 w-4" /> Change product
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-80">
         <div className="text-sm font-medium mb-2">Link a Shopify product</div>
-        {loading && (
-          <div className="text-muted-foreground text-sm">
-            Loading products from Shopify...
-          </div>
-        )}
-        {products && (
-          <div className="flex flex-col gap-3">
-            <Select
-              value={productId}
-              onValueChange={(value) => {
-                setProductId(value);
-                setVariantId("");
-              }}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Choose a product" />
-              </SelectTrigger>
-              <SelectContent>
-                {products.map((product) => (
-                  <SelectItem key={product.id} value={product.id}>
-                    {product.title}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {selectedProduct && (
-              <Select value={variantId} onValueChange={setVariantId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Choose a variant" />
-                </SelectTrigger>
-                <SelectContent>
-                  {selectedProduct.variants.nodes.map((variant) => (
-                    <SelectItem key={variant.id} value={variant.id}>
-                      {variant.title} — ${variant.price}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-            <Button
-              disabled={!selectedProduct || variantId === ""}
-              onClick={handleFailure(async () => {
-                const variant = selectedProduct?.variants.nodes.find(
-                  (v) => v.id === variantId
-                );
-                if (!selectedProduct || !variant) {
-                  return;
-                }
-                await setShopifyVariant({
-                  templateId,
-                  shopifyVariantId: variant.id,
-                  shopifyProductTitle: selectedProduct.title,
-                  shopifyVariantTitle: variant.title,
-                  shopifyPrice: variant.price,
-                });
-                toast({ title: "Template linked to Shopify product." });
-                setOpen(false);
-              })}
-            >
-              Save link
-            </Button>
-          </div>
-        )}
+        <div className="flex flex-col gap-3">
+          <ProductVariantPicker onChange={setSelection} />
+          <Button
+            disabled={!selection}
+            onClick={handleFailure(async () => {
+              if (!selection) {
+                return;
+              }
+              await setShopifyVariant({
+                templateId,
+                shopifyVariantId: selection.variantId,
+                shopifyProductTitle: selection.productTitle,
+                shopifyVariantTitle: selection.variantTitle,
+                shopifyPrice: selection.price,
+              });
+              toast({ title: "Template linked to Shopify product." });
+              setOpen(false);
+            })}
+          >
+            Save link
+          </Button>
+        </div>
       </PopoverContent>
     </Popover>
   );

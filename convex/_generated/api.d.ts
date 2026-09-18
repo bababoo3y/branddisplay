@@ -16,6 +16,8 @@ import type * as shopify from "../shopify.js";
 import type * as types from "../types.js";
 import type * as users from "../users.js";
 import type * as users_teams from "../users/teams.js";
+import type * as users_teams_billing from "../users/teams/billing.js";
+import type * as users_teams_costCentres from "../users/teams/costCentres.js";
 import type * as users_teams_members from "../users/teams/members.js";
 import type * as users_teams_members_invites from "../users/teams/members/invites.js";
 import type * as users_teams_messages from "../users/teams/messages.js";
@@ -39,6 +41,8 @@ declare const fullApi: ApiFromModules<{
   types: typeof types;
   users: typeof users;
   "users/teams": typeof users_teams;
+  "users/teams/billing": typeof users_teams_billing;
+  "users/teams/costCentres": typeof users_teams_costCentres;
   "users/teams/members": typeof users_teams_members;
   "users/teams/members/invites": typeof users_teams_members_invites;
   "users/teams/messages": typeof users_teams_messages;

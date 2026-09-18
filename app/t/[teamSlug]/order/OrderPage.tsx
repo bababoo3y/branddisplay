@@ -6,12 +6,21 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "@/components/ui/use-toast";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { useAction, useQuery } from "convex/react";
 import { useState } from "react";
+
+const SAME_AS_BILLING = "same-as-billing";
 
 export function OrderPage() {
   const team = useCurrentTeam();
@@ -114,9 +123,11 @@ function OrderTemplateCard({
   thumbnailUrl: string | null;
 }) {
   const submitOrder = useAction(api.users.teams.orders.submit);
+  const costCentres = useQuery(api.users.teams.costCentres.list, { teamId });
   const [quantity, setQuantity] = useState("1");
   const [note, setNote] = useState("");
   const [contactPhone, setContactPhone] = useState("");
+  const [costCentreId, setCostCentreId] = useState<string>(SAME_AS_BILLING);
   const [submitting, setSubmitting] = useState(false);
 
   return (
@@ -149,6 +160,24 @@ function OrderTemplateCard({
           />
         </div>
         <div className="flex flex-col gap-1.5 mt-2">
+          <Label htmlFor={`shipping-${templateId}`}>Shipping location</Label>
+          <Select value={costCentreId} onValueChange={setCostCentreId}>
+            <SelectTrigger id={`shipping-${templateId}`}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={SAME_AS_BILLING}>
+                Same as billing address
+              </SelectItem>
+              {costCentres?.map((costCentre) => (
+                <SelectItem key={costCentre._id} value={costCentre._id}>
+                  {costCentre.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex flex-col gap-1.5 mt-2">
           <Label htmlFor={`note-${templateId}`}>Note (optional)</Label>
           <Input
             id={`note-${templateId}`}
@@ -171,6 +200,10 @@ function OrderTemplateCard({
                 quantity: Number(quantity),
                 note: note.trim() === "" ? undefined : note.trim(),
                 contactPhone: contactPhone.trim(),
+                costCentreId:
+                  costCentreId === SAME_AS_BILLING
+                    ? undefined
+                    : (costCentreId as Id<"costCentres">),
               });
               setQuantity("1");
               setNote("");

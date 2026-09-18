@@ -15,6 +15,8 @@ export function SettingsMenu() {
         <>
           <NavLink relativeHref="/members">Members</NavLink>
           <NavLink relativeHref="/orders">Orders</NavLink>
+          <NavLink relativeHref="/billing">Billing address</NavLink>
+          <NavLink relativeHref="/cost-centres">Cost centres</NavLink>
         </>
       )}
     </div>
